@@ -10,11 +10,17 @@ class OrdersController < ApplicationController
   end
 
   def create
-    @order = current_user.orders.build(order_params)
-    @order.save
-    @order.update_total_quantity
-    # update_total_quantityメソッドは、注文された発注量を総量に反映するメソッドであり、Orderモデルに定義されています。
-    redirect_to orders_path
+    ActiveRecord::Base.transaction do
+      @order = current_user.orders.build(order_params)
+      if @order.save
+        @order.update_total_quantity_with_lock
+        redirect_to orders_path, notice: 'Order was successfully created.'
+      else
+        render :new
+      end
+    end
+  rescue => e
+    redirect_to orders_path, alert: "Order creation failed: #{e.message}"
   end
 
   private
